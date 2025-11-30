@@ -15,10 +15,28 @@ type AddSongDialogProps = {
   onOpenChange: (open: boolean) => void
 }
 
+const isValidYouTubeUrl = (url: string): boolean => {
+  const youtubePatterns = [
+    /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|music\.youtube\.com\/watch\?v=)/,
+    /^https?:\/\/youtube\.com\/embed\//,
+    /^https?:\/\/youtube\.com\/v\//,
+  ]
+  return youtubePatterns.some((pattern) => pattern.test(url))
+}
+
+const isValidSpotifyUrl = (url: string): boolean => {
+  return /^https?:\/\/(open\.)?spotify\.com\/track\/[a-zA-Z0-9]+/.test(url)
+}
+
+const isValidUrl = (url: string): boolean => {
+  return isValidYouTubeUrl(url) || isValidSpotifyUrl(url)
+}
+
 export function AddSongDialog({ open, onOpenChange }: AddSongDialogProps) {
   const addSong = useAddSong()
   const [url, setUrl] = useState("")
   const [isExtracting, setIsExtracting] = useState(false)
+  const [urlError, setUrlError] = useState<string | null>(null)
 
   const extractMetadataFromUrl = async (url: string) => {
     setIsExtracting(true)
@@ -78,8 +96,17 @@ export function AddSongDialog({ open, onOpenChange }: AddSongDialogProps) {
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
 
-    if (!url) return
+    if (!url) {
+      setUrlError("Please enter a URL")
+      return
+    }
 
+    if (!isValidUrl(url)) {
+      setUrlError("Please enter a valid YouTube or Spotify URL")
+      return
+    }
+
+    setUrlError(null)
     const metadata = await extractMetadataFromUrl(url)
     if (!metadata) return
 
@@ -95,6 +122,7 @@ export function AddSongDialog({ open, onOpenChange }: AddSongDialogProps) {
       {
         onSuccess: () => {
           setUrl("")
+          setUrlError(null)
           onOpenChange(false)
           toast.success("Banger added! 🎵")
         },
@@ -106,7 +134,16 @@ export function AddSongDialog({ open, onOpenChange }: AddSongDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen)
+        if (!isOpen) {
+          setUrl("")
+          setUrlError(null)
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">{"Drop a Banger 🎧"}</DialogTitle>
@@ -120,7 +157,12 @@ export function AddSongDialog({ open, onOpenChange }: AddSongDialogProps) {
             <Input
               id="url"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                setUrl(e.target.value)
+                if (urlError) {
+                  setUrlError(null)
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && url) {
                   e.preventDefault()
@@ -130,8 +172,12 @@ export function AddSongDialog({ open, onOpenChange }: AddSongDialogProps) {
               placeholder="Paste YouTube or Spotify URL and press Enter"
               autoFocus
               required
+              className={urlError ? "border-destructive" : ""}
             />
-            {isExtracting && (
+            {urlError && (
+              <p className="text-xs text-destructive">{urlError}</p>
+            )}
+            {isExtracting && !urlError && (
               <p className="text-xs text-muted-foreground">{"Extracting metadata..."}</p>
             )}
           </div>
