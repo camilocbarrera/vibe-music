@@ -5,12 +5,13 @@ import { AddSongDialog } from "@/components/add-song-dialog"
 import { QueueList } from "@/components/queue-list"
 import { NowPlayingCard } from "@/components/now-playing-card"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
-import { useSongs, useDeleteSong } from "@/lib/queries"
+import { Plus, Github } from "lucide-react"
+import { useSongs, useDeleteSong, useNowPlaying } from "@/lib/queries"
 import { toast } from "sonner"
 
 export default function Home() {
   const { data: queue = [], isLoading } = useSongs()
+  const { data: nowPlaying } = useNowPlaying()
   const deleteSong = useDeleteSong()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
@@ -29,8 +30,6 @@ export default function Home() {
   const sortedQueue = useMemo(() => {
     return [...queue].reverse()
   }, [queue])
-
-  const nowPlaying = sortedQueue.length > 0 ? sortedQueue[0] : null
 
   const handleRemove = (id: string) => {
     deleteSong.mutate(id, {
@@ -57,37 +56,41 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <header className="mb-12 flex items-center justify-between">
+      <div className="mx-auto max-w-4xl px-4 py-6">
+        <header className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="font-serif text-4xl tracking-tight text-foreground">{"Vibe Playlist 🎵"}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {"Drop bangers from YouTube & Spotify. No signup, just vibes. "}
-              <span className="text-xs text-muted-foreground/70">
-                {"(Press "}
-                <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted rounded border border-border">
-                  ⌘K
-                </kbd>
-                {" or "}
-                <kbd className="px-1.5 py-0.5 text-xs font-semibold text-foreground bg-muted rounded border border-border">
-                  Ctrl+K
-                </kbd>
-                {" to add)"}
-              </span>
+            <div className="flex items-center gap-2">
+              <h1 className="font-serif text-3xl tracking-tight text-foreground">{"Vibe Playlist 🎵"}</h1>
+              <a
+                href="https://github.com/camilocbarrera/vibe-music"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="View on GitHub"
+              >
+                <Github className="h-4 w-4" />
+              </a>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {"Drop bangers from YouTube & Spotify. Press "}
+              <kbd className="px-1 py-0.5 text-xs font-semibold text-foreground bg-muted rounded border border-border">
+                ⌘K
+              </kbd>
+              {" to add"}
             </p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)} size="lg" className="gap-2">
-            <Plus className="h-5 w-5" />
-            {"Drop a Banger"}
+          <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            {"Add Song"}
           </Button>
         </header>
 
         {queue.length === 0 ? (
-          <div className="flex h-96 items-center justify-center rounded-2xl border border-border bg-card">
+          <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
             <div className="text-center">
-              <p className="text-lg text-muted-foreground">{"Queue is empty. Time to fix that 🎵"}</p>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="mt-4">
-                {"Drop the first banger"}
+              <p className="text-sm text-muted-foreground">{"Queue is empty 🎵"}</p>
+              <Button onClick={() => setIsAddDialogOpen(true)} className="mt-3" size="sm">
+                {"Add first song"}
               </Button>
             </div>
           </div>

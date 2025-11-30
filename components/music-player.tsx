@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import type { Song } from "@/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -31,6 +31,8 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
   const playerContainerRef = useRef<HTMLDivElement>(null)
   const [isYTReady, setIsYTReady] = useState(false)
   const isInitializedRef = useRef(false)
+  const currentVideoIdRef = useRef<string | null>(null)
+  const previousVideoIdForCleanupRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!window.YT) {
@@ -58,15 +60,32 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
     return match ? match[1] : null
   }
 
+  const videoId = useMemo(() => {
+    if (song.source !== "youtube-music" && song.source !== "youtube-video") return null
+    return getYouTubeVideoId(song.url)
+  }, [song.source, song.url])
+
+  const hasNextRef = useRef(hasNext)
+  const onNextRef = useRef(onNext)
+  
+  useEffect(() => {
+    hasNextRef.current = hasNext
+    onNextRef.current = onNext
+  }, [hasNext, onNext])
+
   useEffect(() => {
     if (!isYTReady || !playerContainerRef.current) return
-    if (song.source !== "youtube-music" && song.source !== "youtube-video") return
-
-    const videoId = getYouTubeVideoId(song.url)
     if (!videoId) return
 
+    const previousVideoId = previousVideoIdForCleanupRef.current
+    
     if (playerRef.current && isInitializedRef.current) {
+      if (currentVideoIdRef.current === videoId) {
+        return
+      }
       try {
+        currentVideoIdRef.current = videoId
+        previousVideoIdForCleanupRef.current = videoId
         playerRef.current.loadVideoById(videoId)
         setIsPlaying(false)
         setCurrentTime(0)
@@ -98,6 +117,8 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
             events: {
               onReady: () => {
                 isInitializedRef.current = true
+                currentVideoIdRef.current = videoId
+                previousVideoIdForCleanupRef.current = videoId
                 if (playerRef.current && playerRef.current.playVideo) {
                   playerRef.current.playVideo()
                 }
@@ -109,9 +130,9 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
                   setIsPlaying(false)
                 } else if (event.data === window.YT.PlayerState.ENDED) {
                   setIsPlaying(false)
-                  if (hasNext) {
+                  if (hasNextRef.current) {
                     setTimeout(() => {
-                      onNext()
+                      onNextRef.current()
                     }, 500)
                   }
                 }
@@ -125,17 +146,18 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
     }
 
     return () => {
-      if (playerRef.current && playerRef.current.destroy) {
+      if (previousVideoId !== videoId && previousVideoId !== null && playerRef.current && playerRef.current.destroy) {
         try {
           playerRef.current.destroy()
           playerRef.current = null
           isInitializedRef.current = false
+          currentVideoIdRef.current = null
         } catch (error) {
           console.error("[v0] Error destroying player:", error)
         }
       }
     }
-  }, [song.id, isYTReady, song.source, hasNext, onNext])
+  }, [videoId, isYTReady])
 
   useEffect(() => {
     if (!playerRef.current || song.source === "spotify") return
@@ -229,7 +251,7 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-lg">
       <div className="relative aspect-video bg-gradient-to-br from-accent via-card to-muted">
         {song.source === "spotify" ? (
           <iframe
@@ -247,22 +269,22 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
               <Button
                 onClick={handlePlayPause}
                 size="icon"
-                className="h-20 w-20 rounded-full pointer-events-auto"
+                className="h-16 w-16 rounded-full pointer-events-auto"
                 variant="default"
               >
-                {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10" />}
+                {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
               </Button>
             </div>
           </>
         )}
       </div>
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-4 p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h2 className="font-serif text-2xl tracking-tight text-foreground">{song.title}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{song.artist}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <h2 className="font-serif text-xl tracking-tight text-foreground">{song.title}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">{song.artist}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               {"Added by "}
               {song.addedBy}
             </p>
@@ -272,7 +294,7 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
 
         {song.source !== "spotify" && (
           <>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Slider
                 value={[currentTime]}
                 max={getDuration()}
@@ -287,28 +309,28 @@ export function MusicPlayer({ song, onNext, onPrevious, hasNext, hasPrevious }: 
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button onClick={onPrevious} disabled={!hasPrevious} variant="ghost" size="icon">
-                  <SkipBack className="h-5 w-5" />
+              <div className="flex items-center gap-1.5">
+                <Button onClick={onPrevious} disabled={!hasPrevious} variant="ghost" size="icon" className="h-8 w-8">
+                  <SkipBack className="h-4 w-4" />
                 </Button>
-                <Button onClick={handlePlayPause} variant="ghost" size="icon">
-                  {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                <Button onClick={handlePlayPause} variant="ghost" size="icon" className="h-8 w-8">
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </Button>
-                <Button onClick={onNext} disabled={!hasNext} variant="ghost" size="icon">
-                  <SkipForward className="h-5 w-5" />
+                <Button onClick={onNext} disabled={!hasNext} variant="ghost" size="icon" className="h-8 w-8">
+                  <SkipForward className="h-4 w-4" />
                 </Button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button onClick={toggleMute} variant="ghost" size="icon" className="h-8 w-8">
-                  {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              <div className="flex items-center gap-1.5">
+                <Button onClick={toggleMute} variant="ghost" size="icon" className="h-7 w-7">
+                  {isMuted || volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
                 </Button>
                 <Slider
                   value={[isMuted ? 0 : volume]}
                   max={100}
                   step={1}
                   onValueChange={handleVolumeChange}
-                  className="w-24"
+                  className="w-20"
                 />
               </div>
             </div>

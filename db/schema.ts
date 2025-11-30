@@ -20,8 +20,16 @@ export const userFingerprints = pgTable("user_fingerprints", {
   lastSongAddedAt: timestamp("last_song_added_at"),
 })
 
+export const appState = pgTable("app_state", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
 export type Song = typeof songs.$inferSelect
 export type NewSong = typeof songs.$inferInsert
 export type UserFingerprint = typeof userFingerprints.$inferSelect
 export type NewUserFingerprint = typeof userFingerprints.$inferInsert
+export type AppState = typeof appState.$inferSelect
+export type NewAppState = typeof appState.$inferInsert
 

@@ -6,12 +6,13 @@ import { MusicPlayer } from "@/components/music-player"
 import { QueueList } from "@/components/queue-list"
 import { Button } from "@/components/ui/button"
 import { ListMusic } from "lucide-react"
-import { useSongs, useDeleteSong } from "@/lib/queries"
+import { useSongs, useDeleteSong, useSetNowPlaying } from "@/lib/queries"
 import { toast } from "sonner"
 
 export default function VibeReproductorPlayer() {
   const { data: queue = [], isLoading } = useSongs()
   const deleteSong = useDeleteSong()
+  const setNowPlaying = useSetNowPlaying()
   const [currentSongIndex, setCurrentSongIndex] = useState(0)
 
   const sortedQueue = useMemo(() => {
@@ -27,6 +28,13 @@ export default function VibeReproductorPlayer() {
       }
     }
   }, [sortedQueue.length, currentSongIndex])
+
+  useEffect(() => {
+    const currentSong = sortedQueue[currentSongIndex]
+    if (currentSong) {
+      setNowPlaying.mutate(currentSong.id)
+    }
+  }, [currentSongIndex])
 
   const handleNext = () => {
     if (currentSongIndex < sortedQueue.length - 1) {
@@ -95,19 +103,19 @@ export default function VibeReproductorPlayer() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <header className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <header className="mb-6">
+          <div className="flex items-center justify-between mb-3">
             <Link href="/">
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5">
                 <ListMusic className="h-4 w-4" />
                 {"Back to Playlist"}
               </Button>
             </Link>
           </div>
           <div className="text-center">
-            <h1 className="font-serif text-4xl tracking-tight text-foreground">{"Vibe Reproductor 🎵"}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <h1 className="font-serif text-3xl tracking-tight text-foreground">{"Vibe Reproductor 🎵"}</h1>
+            <p className="mt-1 text-xs text-muted-foreground">
               {"Now playing: "}
               {currentSongIndex + 1}
               {" of "}
@@ -116,7 +124,7 @@ export default function VibeReproductorPlayer() {
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr,400px]">
+        <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
           <div>
             <MusicPlayer
               song={currentSong}

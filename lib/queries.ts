@@ -123,3 +123,44 @@ export function useDeleteSong() {
   })
 }
 
+export function useNowPlaying() {
+  return useQuery({
+    queryKey: ["now-playing"],
+    queryFn: async () => {
+      const response = await fetch("/api/now-playing")
+      if (!response.ok) {
+        throw new Error("Failed to fetch now playing")
+      }
+      const data = await response.json()
+      return data.currentSong as Song | null
+    },
+    refetchInterval: 3000,
+  })
+}
+
+export function useSetNowPlaying() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (songId: string) => {
+      const response = await fetch("/api/now-playing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ songId }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to set now playing")
+      }
+
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["now-playing"] })
+    },
+  })
+}
+
